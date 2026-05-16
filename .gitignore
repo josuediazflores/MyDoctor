@@ -1,0 +1,5 @@
+node_modules
+.DS_Store
+frontend.zip
+.env
+.env.local
