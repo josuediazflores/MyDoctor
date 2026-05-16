@@ -739,7 +739,7 @@ function AppShell({ go, active, children, page }) {
   const nav = [
     { k: 'home',     l: 'Home',     i: <IconHome size={20}/>, t: 'dashboard' },
     { k: 'ask',      l: 'Ask',      i: <IconQuote size={20}/>, t: 'chat' },
-    { k: 'visits',   l: 'Visits',   i: <IconCalendar size={20}/>, t: 'visit' },
+    { k: 'visits',   l: 'Visits',   i: <IconCalendar size={20}/>, t: 'visits' },
     { k: 'records',  l: 'Records',  i: <IconFile size={20}/>, t: 'records' },
     { k: 'symptoms', l: 'Symptoms', i: <IconActivity size={20}/>, t: 'symptoms' },
   ];
@@ -833,8 +833,317 @@ function PageHeader({ eyebrow, title, sub, inline = false }) {
   );
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// VISITS — month-grid calendar + Upcoming/Past agenda
+// ────────────────────────────────────────────────────────────────────────────
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear()
+      && a.getMonth() === b.getMonth()
+      && a.getDate() === b.getDate();
+}
+
+function fmtTime(d) {
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function VisitsPage({ go, data }) {
+  const visits = data.visits || [];
+  const today = React.useMemo(() => new Date(), []);
+  const [monthOffset, setMonthOffset] = React.useState(0);
+  const [openVisit, setOpenVisit] = React.useState(null);
+
+  const displayed = React.useMemo(
+    () => new Date(today.getFullYear(), today.getMonth() + monthOffset, 1),
+    [today, monthOffset]
+  );
+  const monthName = displayed.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+  // 6×7 grid starting from the Sunday on or before the 1st of the month
+  const cells = React.useMemo(() => {
+    const start = new Date(displayed);
+    start.setDate(displayed.getDate() - displayed.getDay());
+    return Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d;
+    });
+  }, [displayed]);
+
+  const visitsByDate = React.useMemo(() => {
+    const map = {};
+    visits.forEach((v) => {
+      const k = v.date.toDateString();
+      (map[k] = map[k] || []).push(v);
+    });
+    return map;
+  }, [visits]);
+
+  const upcoming = React.useMemo(
+    () => visits.filter((v) => v.date >= today).sort((a, b) => a.date - b.date),
+    [visits, today]
+  );
+  const past = React.useMemo(
+    () => visits.filter((v) => v.date < today).sort((a, b) => b.date - a.date),
+    [visits, today]
+  );
+
+  const openItem = (v) => {
+    if (v.kind === 'upcoming' && v.detailRoute) go(v.detailRoute);
+    else setOpenVisit(v);
+  };
+
+  return (
+    <AppShell go={go} active="visits" page="04 Visits">
+      <div className="relative">
+        <WaveWatermark style={{ position: 'absolute', top: 0, right: -40, width: 360, height: 80, opacity: 0.55 }} />
+        <PageHeader
+          eyebrow={`${visits.length} visits · past + upcoming`}
+          title="Your calendar."
+          sub="Past appointments stay with you. Upcoming ones get a prep brief when you're ready."
+        />
+      </div>
+
+      {/* Month nav */}
+      <div className="flex items-baseline justify-between mb-4">
+        <h2 className="font-display tabular" style={{ fontSize: 28, fontWeight: 500 }}>{monthName}</h2>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setMonthOffset((n) => n - 1)}
+                  className="px-3 h-9 rounded text-[14px] transition-colors"
+                  style={{ color: 'var(--text-2)', background: 'transparent' }}>
+            ← Prev
+          </button>
+          <button onClick={() => setMonthOffset(0)}
+                  className="px-3 h-9 rounded text-[13px] smallcaps transition-colors"
+                  style={{ color: monthOffset === 0 ? 'var(--accent)' : 'var(--text-faint)' }}>
+            Today
+          </button>
+          <button onClick={() => setMonthOffset((n) => n + 1)}
+                  className="px-3 h-9 rounded text-[14px] transition-colors"
+                  style={{ color: 'var(--text-2)', background: 'transparent' }}>
+            Next →
+          </button>
+        </div>
+      </div>
+      <WaveDivider color="var(--ocean)" opacity={0.4} height={10} className="mb-6" />
+
+      {/* Day-of-week header */}
+      <div className="grid grid-cols-7 mb-2">
+        {DAY_LABELS.map((d) => (
+          <div key={d} className="smallcaps text-center" style={{ color: 'var(--text-faint)' }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Month grid */}
+      <div className="grid grid-cols-7 rounded-xl overflow-hidden"
+           style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+        {cells.map((d, i) => {
+          const inMonth = d.getMonth() === displayed.getMonth();
+          const visitsHere = visitsByDate[d.toDateString()] || [];
+          const isToday = isSameDay(d, today);
+          return (
+            <div key={i}
+                 className="border-r border-b"
+                 style={{
+                   borderColor: 'var(--border)',
+                   borderRightWidth: (i % 7 === 6) ? 0 : 1,
+                   borderBottomWidth: (i >= 35) ? 0 : 1,
+                   minHeight: 92,
+                   padding: '8px 8px 10px',
+                   background: inMonth ? 'var(--surface)' : 'var(--sunken)',
+                 }}>
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span className="text-[13px] tabular font-medium"
+                      style={{ color: inMonth ? 'var(--text)' : 'var(--text-faint)' }}>
+                  {d.getDate()}
+                </span>
+                {isToday && (
+                  <span className="text-[10px] tabular smallcaps"
+                        style={{ color: 'var(--accent-contrast)' }}>Today</span>
+                )}
+              </div>
+              {visitsHere.map((v) => {
+                const upcomingCell = v.kind === 'upcoming';
+                return (
+                  <button key={v.id} onClick={() => openItem(v)}
+                          className="block w-full text-left mb-1 rounded px-1.5 py-1 transition-colors"
+                          style={{
+                            background: upcomingCell ? 'var(--accent-soft)' : 'var(--sea-foam)',
+                            color: upcomingCell ? 'var(--accent)' : 'var(--text-2)',
+                          }}>
+                    <div className="flex items-center gap-1.5">
+                      <span style={{
+                        width: 6, height: 6, borderRadius: 999,
+                        background: upcomingCell ? 'var(--accent)' : 'var(--ocean)',
+                        flexShrink: 0,
+                      }} />
+                      <span className="text-[11px] tabular truncate">{fmtTime(v.date)}</span>
+                    </div>
+                    <div className="text-[11px] truncate mt-0.5"
+                         style={{ fontWeight: upcomingCell ? 500 : 400 }}>
+                      {shortName(v.doctor)}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-6 mt-4 text-[12px]" style={{ color: 'var(--text-faint)' }}>
+        <span className="inline-flex items-center gap-2">
+          <span style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--accent)' }} />
+          Upcoming
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <span style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--ocean)' }} />
+          Past
+        </span>
+      </div>
+
+      {/* Agenda — Upcoming */}
+      <section style={{ marginTop: 80 }}>
+        <div className="mb-6">
+          <h2 className="font-display mb-3" style={{ fontSize: 28, fontWeight: 500 }}>Upcoming</h2>
+          <WaveDivider color="var(--ocean)" opacity={0.4} height={10} />
+        </div>
+        {upcoming.length === 0 ? (
+          <p className="text-[15px]" style={{ color: 'var(--text-faint)' }}>
+            Nothing scheduled. Quiet stretches are okay too.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {upcoming.map((v) => <AgendaRow key={v.id} v={v} onOpen={openItem} />)}
+          </div>
+        )}
+      </section>
+
+      {/* Agenda — Past */}
+      <section style={{ marginTop: 64 }}>
+        <div className="mb-6">
+          <h2 className="font-display mb-3" style={{ fontSize: 28, fontWeight: 500 }}>Past</h2>
+          <WaveDivider color="var(--ocean)" opacity={0.4} height={10} />
+        </div>
+        {past.length === 0 ? (
+          <p className="text-[15px]" style={{ color: 'var(--text-faint)' }}>
+            No past visits in scope yet.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {past.map((v) => <AgendaRow key={v.id} v={v} onOpen={openItem} />)}
+          </div>
+        )}
+      </section>
+
+      <VisitDrawer visit={openVisit} onClose={() => setOpenVisit(null)} />
+    </AppShell>
+  );
+}
+
+function shortName(s) {
+  // Trim long doctor / facility names for tight calendar cells.
+  return s.length > 14 ? s.slice(0, 13) + '…' : s;
+}
+
+function AgendaRow({ v, onOpen }) {
+  const dateLabel = v.date.toLocaleDateString(undefined, {
+    weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
+  });
+  const time = fmtTime(v.date);
+  const upcoming = v.kind === 'upcoming';
+  return (
+    <button onClick={() => onOpen(v)}
+            className="text-left rounded-xl border lift transition-colors"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)', padding: 24 }}>
+      <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
+        <div className="smallcaps tabular"
+             style={{ color: upcoming ? 'var(--accent)' : 'var(--text-faint)' }}>
+          {dateLabel} · {time}
+        </div>
+        <span className="smallcaps"
+              style={{ color: upcoming ? 'var(--accent-contrast)' : 'var(--text-faint)' }}>
+          {upcoming ? 'Open prep →' : 'Past'}
+        </span>
+      </div>
+      <div className="font-display" style={{ fontSize: 22, fontWeight: 500, lineHeight: 1.2 }}>{v.doctor}</div>
+      <div className="text-[14px] mt-1" style={{ color: 'var(--text-2)' }}>
+        {v.specialty} · {v.location}
+      </div>
+      {v.summary && (
+        <p className="text-[14px] mt-3" style={{ color: 'var(--text-2)', lineHeight: 1.6, maxWidth: 620 }}>
+          {v.summary}
+        </p>
+      )}
+    </button>
+  );
+}
+
+function VisitDrawer({ visit, onClose }) {
+  React.useEffect(() => {
+    if (!visit) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [visit, onClose]);
+
+  if (!visit) return null;
+  const dateLabel = visit.date.toLocaleDateString(undefined, {
+    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+  });
+  const time = fmtTime(visit.date);
+
+  return (
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div className="absolute inset-0" style={{ background: 'rgba(31, 36, 25, 0.18)' }} />
+      <aside onClick={(e) => e.stopPropagation()}
+             className="absolute right-0 top-0 h-full overflow-y-auto"
+             style={{
+               width: 'min(480px, 100vw)',
+               background: 'var(--surface)',
+               boxShadow: 'var(--shadow-modal)',
+               padding: 36,
+               animation: 'calm-reveal 480ms ease-out both',
+             }}>
+        <button onClick={onClose}
+                className="smallcaps mb-6 inline-flex items-center gap-2"
+                style={{ color: 'var(--text-faint)' }}>← Close</button>
+        <div className="smallcaps mb-4" style={{ color: 'var(--accent-contrast)' }}>Past visit</div>
+        <h2 className="font-display" style={{ fontSize: 32, lineHeight: 1.1, fontWeight: 500 }}>
+          {visit.doctor}
+        </h2>
+        <div className="text-[14px] mt-3" style={{ color: 'var(--text-2)' }}>
+          {visit.specialty} · {visit.location}
+        </div>
+        <div className="smallcaps tabular mt-2" style={{ color: 'var(--text-faint)' }}>
+          {dateLabel} · {time}{visit.durationMin ? ` · ${visit.durationMin} min` : ''}
+        </div>
+        <div className="my-6"><WaveRule /></div>
+        {visit.summary ? (
+          <div className="rounded-lg p-5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <div className="smallcaps mb-3" style={{ color: 'var(--text-faint)' }}>Notes</div>
+            <p className="text-[15px]" style={{ color: 'var(--text)', lineHeight: 1.7 }}>
+              {visit.summary}
+            </p>
+          </div>
+        ) : (
+          <p className="text-[14px]" style={{ color: 'var(--text-faint)' }}>
+            No notes recorded for this visit.
+          </p>
+        )}
+      </aside>
+    </div>
+  );
+}
+
 Object.assign(window, {
-  LandingPage, AuthPage, DashboardPage, RecordsPage, SymptomsPage,
+  LandingPage, AuthPage, DashboardPage, RecordsPage, SymptomsPage, VisitsPage,
   AppShell, PageHeader, Wordmark, SiteFooter, RecordCard, RecordCardFull,
-  SymptomTimeline14Day, SegToggle,
+  SymptomTimeline14Day, SegToggle, AgendaRow, VisitDrawer,
 });

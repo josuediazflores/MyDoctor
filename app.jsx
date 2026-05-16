@@ -71,11 +71,58 @@ function buildMockData() {
     { label: 'Two weeks ago', range: '27 Apr – 03 May', entries: symptomsList.slice(10) },
   ];
 
+  // Visits — for the calendar page. Times are local; dates are real Date objects so the
+  // grid can compare against today (2026-05-15) and split past vs upcoming cleanly.
+  const visits = [
+    {
+      id: 'visit-hsu-may',
+      date: new Date(2026, 4, 18, 14, 30), // Mon 18 May 2026 2:30 pm
+      durationMin: 30,
+      doctor: 'Dr. Renata Hsu',
+      specialty: 'Internal medicine',
+      location: 'Mission Bay',
+      summary: 'A follow-up on the recurring fatigue and your iron panel from March.',
+      kind: 'upcoming',
+      detailRoute: 'visit', // upcoming visit opens the existing prep centerpiece
+    },
+    {
+      id: 'visit-hsu-mar',
+      date: new Date(2026, 2, 10, 10, 0), // Tue 10 Mar 2026 10:00 am
+      durationMin: 45,
+      doctor: 'Dr. Renata Hsu',
+      specialty: 'Internal medicine · Annual visit',
+      location: 'Mission Bay',
+      summary: 'BP 118/76. Discussed fatigue. Iron panel & CBC ordered. Follow-up in 8 weeks.',
+      kind: 'past',
+    },
+    {
+      id: 'visit-lab-mar',
+      date: new Date(2026, 2, 14, 8, 30), // Sat 14 Mar 2026 8:30 am
+      durationMin: 15,
+      doctor: 'Quest Diagnostics',
+      specialty: 'Lab draw',
+      location: '24th & Mission',
+      summary: 'Fasting draw for iron panel & CBC. Results released to Dr. Hsu the same week.',
+      kind: 'past',
+    },
+    {
+      id: 'visit-thyroid-feb',
+      date: new Date(2026, 1, 8, 15, 15), // Thu 08 Feb 2026 3:15 pm
+      durationMin: 30,
+      doctor: 'Mission Bay Radiology',
+      specialty: 'Imaging · Thyroid ultrasound',
+      location: 'Mission Bay',
+      summary: 'Bilateral, unremarkable. No nodules above threshold.',
+      kind: 'past',
+    },
+  ];
+
   return {
     records,
     symptoms14,
     symptomsList,
     symptomsByWeek,
+    visits,
     brief: { summary: {}, timeline: {}, questions: {}, flag: {} }, // bodies hard-coded in section components
   };
 }
@@ -168,6 +215,7 @@ function App() {
     case 'dashboard': page = <DashboardPage go={go} data={data} askChat={askChat} />; break;
     case 'records':   page = <RecordsPage go={go} data={data} addRecord={addRecord} updateRecord={updateRecord} />; break;
     case 'symptoms':  page = <SymptomsPage go={go} data={data} />; break;
+    case 'visits':    page = <VisitsPage go={go} data={data} />; break;
     case 'visit':     page = <VisitDetailPage go={go} data={data} />; break;
     case 'chat':      page = <ChatPage go={go} data={data} messages={messages} setMessages={setMessages} pendingPromptRef={pendingPromptRef} />; break;
     case 'landing':
@@ -203,6 +251,7 @@ function App() {
             { value: 'signup',    label: 'Sign up' },
             { value: 'dashboard', label: 'Dashboard' },
             { value: 'chat',      label: 'Ask Buttercup' },
+            { value: 'visits',    label: 'Visits calendar' },
             { value: 'records',   label: 'Records' },
             { value: 'symptoms',  label: 'Symptoms' },
             { value: 'visit',     label: 'Visit detail ★' },
