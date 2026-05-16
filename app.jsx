@@ -1,7 +1,7 @@
 // app.jsx — main app shell, mock data, router state, tweaks.
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-  "accent": "#3d5a3d",
+  "accent": "#1e556e",
   "bg": "#f3efe7",
   "showMascot": true,
   "density": "regular"
@@ -183,7 +183,7 @@ function App() {
         <TweakColor
           label="Action color"
           value={t.accent}
-          options={['#3d5a3d', '#1f3a2d', '#5a4a2a', '#4a3a5a', '#3a4a5a']}
+          options={['#1e556e', '#2a6680', '#3d6a5e', '#3d5a3d', '#5a4a2a']}
           onChange={(v) => setTweak('accent', v)}
         />
         <TweakColor

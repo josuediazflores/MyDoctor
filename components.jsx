@@ -176,6 +176,64 @@ function CardTitle({ children, eyebrow, action, className = '' }) {
   );
 }
 
+// -------- WaveRule — sea-theme alt to <hr class="rule"> --------
+function WaveRule({ width = '100%', color = 'var(--ocean)', opacity = 0.5, height = 14, className = '', style = {} }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 240 14" preserveAspectRatio="none"
+         className={className} style={{ color, opacity, display: 'block', ...style }}
+         aria-hidden="true">
+      <path d="M0 7 Q 15 1, 30 7 T 60 7 T 90 7 T 120 7 T 150 7 T 180 7 T 210 7 T 240 7"
+            fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// -------- WaveWatermark — large decorative double-wave for hero backgrounds --------
+function WaveWatermark({ className = '', style = {} }) {
+  return (
+    <svg viewBox="0 0 1200 120" preserveAspectRatio="none"
+         className={className}
+         style={{ pointerEvents: 'none', color: 'var(--ocean)', ...style }}
+         aria-hidden="true">
+      <path d="M0 60 Q 100 10, 200 60 T 400 60 T 600 60 T 800 60 T 1000 60 T 1200 60"
+            fill="none" stroke="currentColor" strokeWidth="2" opacity="0.18" />
+      <path d="M0 90 Q 100 40, 200 90 T 400 90 T 600 90 T 800 90 T 1000 90 T 1200 90"
+            fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.12" />
+      <path d="M0 110 Q 100 70, 200 110 T 400 110 T 600 110 T 800 110 T 1000 110 T 1200 110"
+            fill="none" stroke="currentColor" strokeWidth="1" opacity="0.08" />
+    </svg>
+  );
+}
+
+// -------- SeaHorizon — long, ambient wave line for page-bottom flourishes --------
+function SeaHorizon({ className = '', style = {}, height = 64 }) {
+  return (
+    <div className={className} style={{ position: 'relative', height, color: 'var(--ocean)', ...style }} aria-hidden="true">
+      <svg viewBox="0 0 1600 64" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+        <path d="M0 32 Q 80 14, 160 32 T 320 32 T 480 32 T 640 32 T 800 32 T 960 32 T 1120 32 T 1280 32 T 1440 32 T 1600 32"
+              fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.4" />
+        <path d="M0 46 Q 80 30, 160 46 T 320 46 T 480 46 T 640 46 T 800 46 T 960 46 T 1120 46 T 1280 46 T 1440 46 T 1600 46"
+              fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.25" />
+        <path d="M0 58 Q 80 46, 160 58 T 320 58 T 480 58 T 640 58 T 800 58 T 960 58 T 1120 58 T 1280 58 T 1440 58 T 1600 58"
+              fill="none" stroke="currentColor" strokeWidth="1" opacity="0.15" />
+      </svg>
+    </div>
+  );
+}
+
+// -------- WaveDivider — header underline with a single soft wave (not flat hr) --------
+function WaveDivider({ color = 'var(--border)', opacity = 1, height = 10, className = '', style = {} }) {
+  return (
+    <svg viewBox="0 0 1000 10" preserveAspectRatio="none" width="100%" height={height}
+         className={className}
+         style={{ color, opacity, display: 'block', ...style }}
+         aria-hidden="true">
+      <path d="M0 5 Q 25 1, 50 5 T 100 5 T 150 5 T 200 5 T 250 5 T 300 5 T 350 5 T 400 5 T 450 5 T 500 5 T 550 5 T 600 5 T 650 5 T 700 5 T 750 5 T 800 5 T 850 5 T 900 5 T 950 5 T 1000 5"
+            fill="none" stroke="currentColor" strokeWidth="1" />
+    </svg>
+  );
+}
+
 // -------- Modal --------
 function Modal({ open, onClose, children, maxWidth = 560 }) {
   React.useEffect(() => {
@@ -211,5 +269,6 @@ function Modal({ open, onClose, children, maxWidth = 560 }) {
 
 Object.assign(window, {
   cx, Button, Card, StatusPill, SeverityDot, sevColor, Citation,
-  Field, Input, SkeletonLine, CardTitle, Modal,
+  Field, Input, SkeletonLine, CardTitle, Modal, WaveRule, WaveWatermark,
+  SeaHorizon, WaveDivider,
 });

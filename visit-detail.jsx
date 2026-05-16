@@ -7,7 +7,7 @@ const SECTIONS = [
   { k: 'summary',   title: 'Summary',             eyebrow: '01',  delay: 1300 },
   { k: 'timeline',  title: 'Timeline',            eyebrow: '02',  delay: 2400 },
   { k: 'questions', title: 'Suggested questions', eyebrow: '03',  delay: 3500 },
-  { k: 'flag',      title: 'Anything to flag',    eyebrow: '04',  delay: 4500 },
+  { k: 'flag',      title: 'Anything to surface',    eyebrow: '04',  delay: 4500 },
 ];
 
 function VisitDetailPage({ go, data }) {
@@ -60,6 +60,7 @@ function VisitDetailPage({ go, data }) {
         <p className="font-display italic mt-8" style={{ fontSize: 20, lineHeight: 1.5, color: 'var(--text-2)', maxWidth: 620 }}>
           A follow-up on the recurring fatigue and your iron panel from March.
         </p>
+        <SeaHorizon className="mt-10" height={36} />
       </header>
 
       {/* Hero card: generate */}
@@ -133,16 +134,19 @@ function VisitDetailPage({ go, data }) {
 function BriefSection({ section, ready, content, onCite }) {
   return (
     <section>
-      <div className="flex items-baseline justify-between mb-6 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-baseline gap-5">
-          <span className="font-display tabular" style={{ fontSize: 15, color: 'var(--accent-contrast)', fontWeight: 500 }}>
-            {section.eyebrow}
+      <div className="mb-6">
+        <div className="flex items-baseline justify-between mb-3">
+          <div className="flex items-baseline gap-5">
+            <span className="font-display tabular" style={{ fontSize: 15, color: 'var(--accent-contrast)', fontWeight: 500 }}>
+              {section.eyebrow}
+            </span>
+            <h2 className="font-display" style={{ fontSize: 28, lineHeight: 1.1, fontWeight: 500 }}>{section.title}</h2>
+          </div>
+          <span className="no-print">
+            {ready ? <StatusPill state="ready" /> : <StatusPill state="processing" />}
           </span>
-          <h2 className="font-display" style={{ fontSize: 28, lineHeight: 1.1, fontWeight: 500 }}>{section.title}</h2>
         </div>
-        <span className="no-print">
-          {ready ? <StatusPill state="ready" /> : <StatusPill state="processing" />}
-        </span>
+        <WaveDivider color="var(--ocean)" opacity={0.45} height={10} />
       </div>
 
       <div style={{ minHeight: 120 }}>

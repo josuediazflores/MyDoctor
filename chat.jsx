@@ -194,7 +194,7 @@ function ChatPage({ go, data, messages, setMessages, pendingPromptRef }) {
             Ask <em style={{ color: 'var(--accent-contrast)' }}>Buttercup</em>.
           </h1>
           <p className="font-display italic mt-6" style={{ fontSize: 20, lineHeight: 1.5, color: 'var(--text-2)', maxWidth: 620 }}>
-            A quiet place to think out loud about what you're noticing, with everything you've uploaded in scope.
+            Calm waters for thinking out loud, with everything you've uploaded already in scope.
           </p>
         </header>
 
@@ -272,8 +272,9 @@ function ContextChip({ children }) {
 
 function EmptyState({ onPick, starters }) {
   return (
-    <div className="flex flex-col items-center text-center" style={{ paddingTop: 32, paddingBottom: 16 }}>
-      <Buttercup size={200} pose="note" />
+    <div className="relative flex flex-col items-center text-center" style={{ paddingTop: 32, paddingBottom: 16 }}>
+      <WaveWatermark style={{ position: 'absolute', top: 40, left: 0, right: 0, width: '100%', height: 140, opacity: 0.7 }} />
+      <Buttercup size={200} pose="note" className="relative" />
       <h2 className="font-display mt-8" style={{ fontSize: 28, lineHeight: 1.2, fontWeight: 500, maxWidth: 480 }}>
         I've read your records. <em style={{ color: 'var(--accent-contrast)' }}>Where do you want to start?</em>
       </h2>

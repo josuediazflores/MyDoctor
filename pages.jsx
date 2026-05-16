@@ -17,8 +17,10 @@ function LandingPage({ go }) {
       </header>
 
       {/* HERO — editorial spread, breaks 920px constraint */}
-      <section className="max-w-[1200px] mx-auto px-10" style={{ paddingTop: 96, paddingBottom: 160 }}>
-        <div className="grid grid-cols-12 gap-10 items-center">
+      <section className="max-w-[1200px] mx-auto px-10 relative" style={{ paddingTop: 96, paddingBottom: 160 }}>
+        {/* Soft sea watermark behind the hero */}
+        <WaveWatermark className="absolute inset-x-0" style={{ bottom: 80, height: 120, width: '100%' }} />
+        <div className="grid grid-cols-12 gap-10 items-center relative">
           <div className="col-span-12 lg:col-span-7">
             <div className="smallcaps mb-8" style={{ color: 'var(--text-faint)' }}>A pre-visit prep tool</div>
             <h1 className="font-display"
@@ -48,8 +50,8 @@ function LandingPage({ go }) {
         </div>
       </section>
 
-      {/* Quiet rule */}
-      <div className="max-w-[920px] mx-auto px-6"><hr className="rule" /></div>
+      {/* Sea-wave rule */}
+      <div className="max-w-[920px] mx-auto px-6"><WaveRule /></div>
 
       {/* Feature triad — magazine-style, no icon tiles */}
       <section className="max-w-[920px] mx-auto px-6" style={{ paddingTop: 120, paddingBottom: 120 }}>
@@ -81,6 +83,9 @@ function LandingPage({ go }) {
         </div>
       </section>
 
+      {/* Quote sea-horizon */}
+      <div className="max-w-[1200px] mx-auto px-10"><SeaHorizon height={48} /></div>
+
       {/* Pull quote — editorial calm */}
       <section className="max-w-[760px] mx-auto px-6" style={{ paddingBottom: 120 }}>
         <div className="text-center">
@@ -111,6 +116,9 @@ function SiteFooter() {
   return (
     <footer className="border-t" style={{ borderColor: 'var(--border)' }}>
       <div className="max-w-[920px] mx-auto px-6 text-center" style={{ paddingTop: 64, paddingBottom: 64 }}>
+        <div className="flex justify-center mb-8">
+          <WaveRule width={160} opacity={0.45} />
+        </div>
         <p className="text-[13px]" style={{ color: 'var(--text-faint)' }}>
           Not medical advice. For personal prep only — always consult your doctor.
         </p>
@@ -189,13 +197,24 @@ function AuthPage({ mode = 'signin', go }) {
 // DASHBOARD
 // ────────────────────────────────────────────────────────────────────────────
 function DashboardPage({ go, data, askChat }) {
+  // Personalization: time-of-day greeting + countdown to the upcoming visit.
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 5 ? 'Still up' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const today = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const visitDays = 6; // mocked: visit is 6 days from today
+  const visitWord = visitDays === 0 ? 'Today' : visitDays === 1 ? 'Tomorrow' : `In ${visitDays} days`;
+
   return (
     <AppShell go={go} active="home" page="01 Dashboard">
-      <PageHeader
-        eyebrow="Tuesday, 12 May"
-        title="Good morning, Maya."
-        sub="One upcoming visit. You've logged symptoms 9 of the last 14 days."
-      />
+      <div className="relative">
+        <WaveWatermark style={{ position: 'absolute', top: 8, right: -40, width: 360, height: 80, opacity: 0.6 }} />
+        <PageHeader
+          eyebrow={today}
+          title={`${greeting}, Maya.`}
+          sub={`${visitWord} you see Dr. Hsu. You've logged how you're feeling 9 of the last 14 days.`}
+        />
+      </div>
 
       <div className="flex flex-col" style={{ gap: 80 }}>
         {/* Ask Buttercup — chat entry */}
@@ -654,9 +673,12 @@ function SymptomTimelineView({ data }) {
     <div className="flex flex-col" style={{ gap: 80 }}>
       {data.map((week, wi) => (
         <section key={wi}>
-          <div className="flex items-baseline justify-between mb-8 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
-            <h3 className="font-display" style={{ fontSize: 28, fontWeight: 500, lineHeight: 1 }}>{week.label}</h3>
-            <span className="smallcaps tabular" style={{ color: 'var(--text-faint)' }}>{week.range}</span>
+          <div className="mb-8">
+            <div className="flex items-baseline justify-between mb-3">
+              <h3 className="font-display" style={{ fontSize: 28, fontWeight: 500, lineHeight: 1 }}>{week.label}</h3>
+              <span className="smallcaps tabular" style={{ color: 'var(--text-faint)' }}>{week.range}</span>
+            </div>
+            <WaveDivider color="var(--ocean)" opacity={0.4} height={10} />
           </div>
           <div className="flex flex-col gap-5">
             {week.entries.length === 0 ? (
@@ -789,6 +811,9 @@ function AppShell({ go, active, children, page }) {
 
       <footer className="border-t no-print" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-[920px] mx-auto px-6 text-center" style={{ paddingTop: 48, paddingBottom: 48 }}>
+          <div className="flex justify-center mb-6">
+            <WaveRule width={120} opacity={0.4} />
+          </div>
           <p className="text-[13px]" style={{ color: 'var(--text-faint)' }}>
             Not medical advice. For personal prep only — always consult your doctor.
           </p>
