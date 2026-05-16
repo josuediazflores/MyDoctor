@@ -1,5 +1,78 @@
 // app.jsx — main app shell, mock data, router state, tweaks.
 
+// Bucket symptom entries into "Today", "This week", "Last week", "Earlier"
+// relative to today. Used by app.jsx to keep newly-logged entries visible
+// in the right group without hardcoded slice indices.
+function bucketSymptomsByWeek(list) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const startOfThisWeek = new Date(today);
+  startOfThisWeek.setDate(today.getDate() - today.getDay()); // Sunday
+  const startOfLastWeek = new Date(startOfThisWeek);
+  startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
+
+  const fmtRange = (start, end) => {
+    const opts = { day: '2-digit', month: 'short' };
+    return `${start.toLocaleDateString(undefined, opts)} – ${end.toLocaleDateString(undefined, opts)}`;
+  };
+
+  const buckets = {
+    today:    { label: 'Today',         range: today.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }),                            entries: [] },
+    thisWeek: { label: 'This week',     range: fmtRange(startOfThisWeek, new Date(startOfThisWeek.getTime() + 6 * 86400000)),                       entries: [] },
+    lastWeek: { label: 'Last week',     range: fmtRange(startOfLastWeek, new Date(startOfLastWeek.getTime() + 6 * 86400000)),                       entries: [] },
+    earlier:  { label: 'Earlier',       range: '',                                                                                                   entries: [] },
+  };
+
+  list.forEach((e) => {
+    const d = entryDate(e);
+    if (!d) { buckets.earlier.entries.push(e); return; }
+    const day = new Date(d);
+    day.setHours(0, 0, 0, 0);
+    if (day.getTime() === today.getTime()) buckets.today.entries.push(e);
+    else if (day >= startOfThisWeek)       buckets.thisWeek.entries.push(e);
+    else if (day >= startOfLastWeek)       buckets.lastWeek.entries.push(e);
+    else                                    buckets.earlier.entries.push(e);
+  });
+
+  // Only return non-empty groups, in chronological order.
+  return [buckets.today, buckets.thisWeek, buckets.lastWeek, buckets.earlier]
+    .filter((b) => b.entries.length > 0);
+}
+
+// Convert a DB row (from /symptoms) into the in-memory symptom entry shape
+// the timeline + list views already expect (name, severity, time, day, dow,
+// dateLabel, note?, plus id + loggedAt for de-dupe and bucketing).
+function symptomFromRow(row) {
+  const d = new Date(row.logged_at);
+  return {
+    id: row.id,
+    name: row.name,
+    severity: row.severity,
+    note: row.note || undefined,
+    loggedAt: d,
+    time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+    day: String(d.getDate()).padStart(2, '0'),
+    dow: d.toLocaleDateString(undefined, { weekday: 'short' }),
+    dateLabel: d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }),
+  };
+}
+
+// Best-effort date parsing from a symptom entry — supports a real Date,
+// an ISO string, or the legacy "DD Mon YYYY HH:MM" mock label.
+function entryDate(e) {
+  if (e?.loggedAt instanceof Date) return e.loggedAt;
+  if (typeof e?.loggedAt === 'string') {
+    const d = new Date(e.loggedAt);
+    if (!isNaN(d)) return d;
+  }
+  if (e?.dateLabel) {
+    const d = new Date(`${e.dateLabel} ${e.time || '12:00'}`);
+    if (!isNaN(d)) return d;
+  }
+  return null;
+}
+
+
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "accent": "#1e556e",
   "bg": "#f3efe7",
@@ -148,7 +221,16 @@ function App() {
 
   const seed = React.useMemo(buildMockData, []);
   const [records, setRecords] = React.useState(() => seed.records);
-  const data = React.useMemo(() => ({ ...seed, records }), [seed, records]);
+  const [symptomsList, setSymptomsList] = React.useState(() => seed.symptomsList);
+  // Recompute the by-week buckets from the live list so new entries land in "Today" / "This week".
+  const symptomsByWeek = React.useMemo(
+    () => bucketSymptomsByWeek(symptomsList),
+    [symptomsList]
+  );
+  const data = React.useMemo(
+    () => ({ ...seed, records, symptomsList, symptomsByWeek }),
+    [seed, records, symptomsList, symptomsByWeek]
+  );
 
   const addRecord = React.useCallback(
     (r) => setRecords((rs) => [r, ...rs]),
@@ -156,6 +238,10 @@ function App() {
   );
   const updateRecord = React.useCallback(
     (id, patch) => setRecords((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r))),
+    []
+  );
+  const addSymptom = React.useCallback(
+    (s) => setSymptomsList((list) => [s, ...list]),
     []
   );
 
@@ -190,6 +276,24 @@ function App() {
     return () => { cancelled = true; };
   }, [seed]);
 
+  // Pull persisted symptom entries on mount; merge with seeded mock entries.
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch('https://api.butterbase.ai/v1/app_hsc2rrbzk5mf/symptoms?order=logged_at.desc&limit=100')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => {
+        if (cancelled || !Array.isArray(rows) || rows.length === 0) return;
+        const fromDb = rows.map((row) => symptomFromRow(row));
+        setSymptomsList((curr) => {
+          const seen = new Set(curr.filter((e) => e.id).map((e) => e.id));
+          const fresh = fromDb.filter((e) => !seen.has(e.id));
+          return [...fresh, ...curr];
+        });
+      })
+      .catch((e) => console.warn('Failed to load symptoms from DB:', e));
+    return () => { cancelled = true; };
+  }, []);
+
   // Chat messages lifted here so they persist across route changes.
   const [messages, setMessages] = React.useState([]);
   // A prompt that the dashboard "Ask Buttercup" card can hand off to the chat page.
@@ -214,7 +318,7 @@ function App() {
     case 'signup':    page = <AuthPage mode="signup" go={go} />; break;
     case 'dashboard': page = <DashboardPage go={go} data={data} askChat={askChat} />; break;
     case 'records':   page = <RecordsPage go={go} data={data} addRecord={addRecord} updateRecord={updateRecord} />; break;
-    case 'symptoms':  page = <SymptomsPage go={go} data={data} />; break;
+    case 'symptoms':  page = <SymptomsPage go={go} data={data} addSymptom={addSymptom} />; break;
     case 'visits':    page = <VisitsPage go={go} data={data} />; break;
     case 'visit':     page = <VisitDetailPage go={go} data={data} />; break;
     case 'chat':      page = <ChatPage go={go} data={data} messages={messages} setMessages={setMessages} pendingPromptRef={pendingPromptRef} />; break;

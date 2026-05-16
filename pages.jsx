@@ -558,12 +558,70 @@ function RecordCardFull({ record }) {
 // ────────────────────────────────────────────────────────────────────────────
 // SYMPTOMS
 // ────────────────────────────────────────────────────────────────────────────
-function SymptomsPage({ go, data }) {
+const SYMPTOMS_API_URL = "https://api.butterbase.ai/v1/app_hsc2rrbzk5mf/symptoms";
+
+function SymptomsPage({ go, data, addSymptom }) {
   const [view, setView] = React.useState('timeline'); // 'timeline' | 'list'
   const [open, setOpen] = React.useState(false);
   const [sev, setSev] = React.useState(5);
   const [name, setName] = React.useState('');
   const [note, setNote] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState(null);
+
+  const todayLabel = React.useMemo(() => {
+    return new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  }, [open]);
+
+  const resetForm = () => {
+    setName(''); setNote(''); setSev(5); setSaveError(null); setSaving(false);
+  };
+
+  const handleSave = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setSaveError("Add what you're noticing first — even a word is fine.");
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    const now = new Date();
+    const payload = {
+      name: trimmed,
+      severity: sev,
+      note: note.trim() || null,
+      logged_at: now.toISOString(),
+    };
+    try {
+      const res = await fetch(SYMPTOMS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`Save failed (${res.status}): ${detail.slice(0, 160)}`);
+      }
+      const row = await res.json();
+      addSymptom?.({
+        id: row.id,
+        name: row.name,
+        severity: row.severity,
+        note: row.note || undefined,
+        loggedAt: new Date(row.logged_at),
+        time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+        day: String(now.getDate()).padStart(2, '0'),
+        dow: now.toLocaleDateString(undefined, { weekday: 'short' }),
+        dateLabel: now.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }),
+      });
+      resetForm();
+      setOpen(false);
+    } catch (e) {
+      console.error('Symptom save failed:', e);
+      setSaveError(e.message || "Couldn't save just now. Try again in a moment.");
+      setSaving(false);
+    }
+  };
 
   return (
     <AppShell go={go} active="symptoms" page="03 Symptoms">
@@ -590,14 +648,14 @@ function SymptomsPage({ go, data }) {
       )}
 
       {/* Log modal */}
-      <Modal open={open} onClose={() => setOpen(false)} maxWidth={600}>
+      <Modal open={open} onClose={() => { if (!saving) { resetForm(); setOpen(false); } }} maxWidth={600}>
         <div style={{ padding: 40 }}>
           <div className="flex items-start justify-between gap-6 mb-2">
             <div>
-              <div className="smallcaps mb-3" style={{ color: 'var(--text-faint)' }}>New entry · Tuesday, 12 May</div>
+              <div className="smallcaps mb-3" style={{ color: 'var(--text-faint)' }}>New entry · {todayLabel}</div>
               <h3 className="font-display" style={{ fontSize: 28, lineHeight: 1.1, fontWeight: 500 }}>Log a symptom.</h3>
             </div>
-            <button onClick={() => setOpen(false)} className="rounded-lg p-2" style={{ color: 'var(--text-2)' }}>
+            <button onClick={() => { if (!saving) { resetForm(); setOpen(false); } }} className="rounded-lg p-2" style={{ color: 'var(--text-2)' }}>
               <IconClose size={20}/>
             </button>
           </div>
@@ -640,9 +698,18 @@ function SymptomsPage({ go, data }) {
             </Field>
           </div>
 
+          {saveError && (
+            <div className="rounded-lg mt-8 px-4 py-3 text-[14px]"
+                 style={{ background: 'var(--warn-bg)', color: 'var(--warn-text)', border: '1px solid var(--warn-bd)' }}>
+              {saveError}
+            </div>
+          )}
+
           <div className="flex items-center justify-end gap-3 mt-12">
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={() => setOpen(false)}>Save entry</Button>
+            <Button variant="ghost" onClick={() => { if (!saving) { resetForm(); setOpen(false); } }} disabled={saving}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving || !name.trim()}>
+              {saving ? 'Saving…' : 'Save entry'}
+            </Button>
           </div>
         </div>
       </Modal>
