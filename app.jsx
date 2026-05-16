@@ -99,7 +99,49 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
-  const data = React.useMemo(buildMockData, []);
+  const seed = React.useMemo(buildMockData, []);
+  const [records, setRecords] = React.useState(() => seed.records);
+  const data = React.useMemo(() => ({ ...seed, records }), [seed, records]);
+
+  const addRecord = React.useCallback(
+    (r) => setRecords((rs) => [r, ...rs]),
+    []
+  );
+  const updateRecord = React.useCallback(
+    (id, patch) => setRecords((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r))),
+    []
+  );
+
+  // Pull persisted records from Butterbase on mount and prepend above the seeded mock set.
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch('https://api.butterbase.ai/v1/app_hsc2rrbzk5mf/records?order=created_at.desc&limit=50')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => {
+        if (cancelled || !Array.isArray(rows)) return;
+        const seedIds = new Set(seed.records.map((r) => r.id));
+        const fromDb = rows
+          .filter((row) => row?.id && !seedIds.has(row.id))
+          .map((row) => ({
+            id: row.id,
+            type: row.type || 'Note',
+            title: row.title || row.filename || 'Uploaded record',
+            date: row.created_at
+              ? new Date(row.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+              : '',
+            size: row.size_bytes
+              ? (Number(row.size_bytes) < 1024 * 1024
+                  ? `${(Number(row.size_bytes) / 1024).toFixed(1)} KB`
+                  : `${(Number(row.size_bytes) / (1024 * 1024)).toFixed(1)} MB`)
+              : '',
+            status: row.status || 'ready',
+            snippet: row.snippet || '',
+          }));
+        if (fromDb.length > 0) setRecords((rs) => [...fromDb, ...seed.records]);
+      })
+      .catch((e) => console.warn('Failed to load records from DB:', e));
+    return () => { cancelled = true; };
+  }, [seed]);
 
   // Chat messages lifted here so they persist across route changes.
   const [messages, setMessages] = React.useState([]);
@@ -124,7 +166,7 @@ function App() {
     case 'signin':    page = <AuthPage mode="signin" go={go} />; break;
     case 'signup':    page = <AuthPage mode="signup" go={go} />; break;
     case 'dashboard': page = <DashboardPage go={go} data={data} askChat={askChat} />; break;
-    case 'records':   page = <RecordsPage go={go} data={data} />; break;
+    case 'records':   page = <RecordsPage go={go} data={data} addRecord={addRecord} updateRecord={updateRecord} />; break;
     case 'symptoms':  page = <SymptomsPage go={go} data={data} />; break;
     case 'visit':     page = <VisitDetailPage go={go} data={data} />; break;
     case 'chat':      page = <ChatPage go={go} data={data} messages={messages} setMessages={setMessages} pendingPromptRef={pendingPromptRef} />; break;

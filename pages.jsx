@@ -330,10 +330,96 @@ function RecordCard({ record, onClick }) {
 // ────────────────────────────────────────────────────────────────────────────
 // RECORDS
 // ────────────────────────────────────────────────────────────────────────────
-function RecordsPage({ go, data }) {
+const RECORDS_API_BASE = "https://api.butterbase.ai/v1/app_hsc2rrbzk5mf";
+const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+function humanSize(bytes) {
+  if (!bytes && bytes !== 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function todayLabel() {
+  const d = new Date();
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+async function uploadOneRecord(file, addRecord, updateRecord) {
+  const tempId = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  addRecord({
+    id: tempId,
+    type: "Note",
+    title: file.name.replace(/\.[^.]+$/, ""),
+    date: todayLabel(),
+    size: humanSize(file.size),
+    status: "processing",
+    snippet: "Reading…",
+  });
+
+  try {
+    if (!ALLOWED_UPLOAD_TYPES.includes(file.type)) {
+      throw new Error(`Unsupported file type: ${file.type || "unknown"}. Use JPG, PNG, or PDF.`);
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new Error(`File too large (${humanSize(file.size)}). Max 10 MB.`);
+    }
+
+    const upRes = await fetch(`${RECORDS_API_BASE}/fn/records-upload`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type,
+        sizeBytes: file.size,
+      }),
+    });
+    if (!upRes.ok) throw new Error(`records-upload ${upRes.status}: ${(await upRes.text()).slice(0, 160)}`);
+    const { uploadUrl, recordId } = await upRes.json();
+
+    const putRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+    if (!putRes.ok) throw new Error(`Storage upload ${putRes.status}`);
+
+    updateRecord(tempId, { id: recordId, snippet: "Extracting…" });
+
+    const procRes = await fetch(`${RECORDS_API_BASE}/fn/process-record`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordId }),
+    });
+    if (!procRes.ok) throw new Error(`process-record ${procRes.status}: ${(await procRes.text()).slice(0, 160)}`);
+    const { record } = await procRes.json();
+
+    updateRecord(recordId, {
+      id: record.id,
+      type: record.type,
+      title: record.title,
+      snippet: record.snippet,
+      status: record.status,
+      date: todayLabel(),
+      size: humanSize(file.size),
+    });
+  } catch (e) {
+    console.error("Upload failed:", e);
+    updateRecord(tempId, { status: "failed", snippet: e.message || "Upload failed." });
+  }
+}
+
+function RecordsPage({ go, data, addRecord, updateRecord }) {
   const [filter, setFilter] = React.useState('all');
   const [hover, setHover] = React.useState(false);
+  const fileInputRef = React.useRef(null);
   const filtered = filter === 'all' ? data.records : data.records.filter((r) => r.type.toLowerCase() === filter);
+
+  const handleFiles = (fileList) => {
+    if (!fileList || !addRecord || !updateRecord) return;
+    Array.from(fileList).forEach((file) => uploadOneRecord(file, addRecord, updateRecord));
+  };
 
   return (
     <AppShell go={go} active="records" page="02 Records">
@@ -343,23 +429,44 @@ function RecordsPage({ go, data }) {
         sub="Originals stay private. We extract values so they can show up in your briefings."
       />
 
+      {/* Hidden file input — triggered by drop zone or browse-files button */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,application/pdf"
+        multiple
+        style={{ display: 'none' }}
+        onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
+      />
+
       {/* Drop zone */}
       <div
-        className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-center transition-colors"
+        className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-center transition-colors cursor-pointer"
         style={{
           borderColor: hover ? 'var(--accent)' : 'var(--border-strong)',
           background: hover ? 'var(--accent-soft)' : 'var(--surface)',
           height: 200,
           padding: 32,
         }}
+        onClick={() => fileInputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setHover(true); }}
         onDragLeave={() => setHover(false)}
-        onDrop={(e) => { e.preventDefault(); setHover(false); }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setHover(false);
+          handleFiles(e.dataTransfer?.files);
+        }}
       >
         <IconUpload size={32} className="mb-4" style={{ color: 'var(--accent)' }} />
         <div className="font-display" style={{ fontSize: 22, fontWeight: 500 }}>Drop your record here.</div>
         <div className="mt-2 text-[14px]" style={{ color: 'var(--text-2)' }}>
-          PDFs, JPGs, PNGs. Or <button className="underline" style={{ color: 'var(--accent)' }}>browse files</button>.
+          PDFs, JPGs, PNGs. Or{' '}
+          <button
+            type="button"
+            className="underline"
+            style={{ color: 'var(--accent)' }}
+            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+          >browse files</button>.
         </div>
       </div>
 
