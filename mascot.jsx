@@ -13,6 +13,28 @@
 //   'sleeping' — curled, eyes closed (kept SVG, used in any empty states).
 
 function Buttercup({ size = 320, pose = 'sitting', className = '', style = {} }) {
+  // ── Brand logo — the otter family illustration ───────────────────────────
+  // Used in the wordmark (top bar + landing/auth headers). Pre-cropped to a
+  // circle inside the source artwork; rendering it as a clean square is fine.
+  if (pose === 'logo') {
+    return (
+      <img
+        src="assets/buttercup-family.png"
+        alt="My Doctor"
+        width={size}
+        height={size}
+        className={className}
+        style={{
+          width: size,
+          height: size,
+          objectFit: 'contain',
+          ...style,
+        }}
+        draggable="false"
+      />
+    );
+  }
+
   // ── Big illustrated poses (PNG) ───────────────────────────────────────────
   if (pose === 'sitting' || pose === 'note') {
     const src = pose === 'note'

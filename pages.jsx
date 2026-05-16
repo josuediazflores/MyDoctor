@@ -104,7 +104,7 @@ function LandingPage({ go }) {
 function Wordmark() {
   return (
     <div className="flex items-center gap-3 select-none">
-      <Buttercup size={36} pose="peek" />
+      <Buttercup size={44} pose="logo" />
       <span className="font-display tabular" style={{ fontSize: 22, letterSpacing: '-0.02em', fontWeight: 500 }}>
         My Doctor
       </span>
@@ -139,7 +139,7 @@ function AuthPage({ mode = 'signin', go }) {
     <div data-screen-label={isSignup ? "02 Sign up" : "02 Sign in"} className="min-h-screen flex flex-col">
       <header className="flex items-center justify-between max-w-[1200px] w-full mx-auto px-10 pt-8 pb-4">
         <button onClick={() => go('landing')} className="flex items-center gap-3 select-none">
-          <Buttercup size={36} pose="peek" />
+          <Buttercup size={44} pose="logo" />
           <span className="font-display" style={{ fontSize: 22, letterSpacing: '-0.02em', fontWeight: 500 }}>My Doctor</span>
         </button>
         <Button variant="ghost" size="sm" onClick={() => go(isSignup ? 'signin' : 'signup')}>
@@ -749,7 +749,7 @@ function AppShell({ go, active, children, page }) {
       <header className="border-b sticky top-0 z-30" style={{ background: 'var(--bg)', borderColor: 'var(--border)', height: 72 }}>
         <div className="h-full px-8 flex items-center justify-between">
           <button className="flex items-center gap-3 select-none" onClick={() => go('landing')}>
-            <Buttercup size={32} pose="peek" />
+            <Buttercup size={44} pose="logo" />
             <span className="font-display" style={{ fontSize: 20, letterSpacing: '-0.02em', fontWeight: 500 }}>My Doctor</span>
           </button>
           <div className="flex items-center gap-6">
